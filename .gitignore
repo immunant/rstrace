@@ -1,0 +1,6 @@
+# IDE folders
+.idea
+.vscode
+
+# Rust output
+target/
