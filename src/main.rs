@@ -1,7 +1,19 @@
 use std::process::{exit, Command};
+use std::path::{Path, PathBuf};
 
+#[macro_use]
+extern crate nom;
+#[macro_use(crate_version, crate_authors)]
 extern crate clap;
-use clap::{App};
+use clap::{App, Arg, AppSettings, ArgMatches};
+
+extern crate tempfile;
+use tempfile::tempdir;
+use std::fs::File;
+use std::io::{BufReader, BufRead};
+
+
+mod parser;
 
 fn locate_strace() -> Result<String, &'static str> {
     // get path to strace
@@ -30,15 +42,89 @@ fn locate_strace() -> Result<String, &'static str> {
     Ok(strace_path.to_string())
 }
 
-fn run_app() -> Result<(), &'static str> {
+fn process_output_file(file: PathBuf) -> Result<(), String> {
 
-    if !cfg!(unix) {
-        return Err("cctrace only runs on Unix hosts")
+    let f = File::open(file).unwrap();
+    let buf = BufReader::new(&f);
+    for line in buf.lines() {
+        let line = line.unwrap();
+        parser::parseln(&line);
     }
+    Ok(())
+}
 
+fn run_strace(args: ArgMatches, output_file: &str) -> Result<(), String> {
+    let strace_args = vec![
+        "-o", output_file,     // output to `$output_file.$pid`
+        "-ff",                 // follow forks
+        "-e", "trace=execve",  // only trace execve calls
+        "-s", "8192",          // set max string length
+        "-v"                   // request unabridged output
+    ];
+    // get the build command
+    let cmd: Vec<&str> = args.values_of("cmd").unwrap().collect();
     let strace_path = locate_strace()?;
 
-    // Application logic here
+    let mut strace_child = Command::new(strace_path)
+        .args(strace_args)
+        .args(cmd)
+        .spawn()
+        .expect("failed to run strace");
+
+    let output = strace_child
+        .wait()
+        .expect("strace didn't exit cleanly");
+
+    let tmp_dir = Path::new(output_file).parent().unwrap();
+    let _res = tmp_dir
+        .read_dir()
+        .unwrap()
+        .map(|rde| {
+            if let Ok(entry) = rde {
+                if let Ok(file_type) = entry.file_type()  {
+                    assert!(file_type.is_file());
+                    return process_output_file(entry.path())
+                }
+            }
+            // shouldn't happen since we strace to a pristine tempdir
+            panic!("unexpected non-file entry in {}",
+                   tmp_dir.to_str().unwrap());
+        }).collect::<Vec<_>>();
+
+
+    Ok(())
+}
+
+fn run_app() -> Result<(), String> {
+
+    if !cfg!(unix) {
+        return Err("cctrace only runs on Unix hosts".to_string())
+    }
+
+    let matches = App::new("cctrace")
+        .version(crate_version!())
+        .author(crate_authors!(", "))
+        .about("traces C/C++ compiler and linker invocations")
+        .setting(AppSettings::TrailingVarArg)
+        .arg(Arg::from_usage("<cmd>... 'build command'"))
+        .get_matches();
+
+    {
+        // Create a directory inside of `std::env::temp_dir()`
+        let tmp_dir = tempdir().map_err(|e| format!("{}", e))?;
+        let strace_outfile = tmp_dir
+            .path()
+            .join("cctrace.out");
+        let strace_outfile = strace_outfile
+            .to_str()
+            .expect("failed to construct temporary output filename");
+
+        run_strace(matches, strace_outfile)?;
+
+        // `tmp_dir` goes out of scope, the directory will be deleted here.
+        tmp_dir.close().map_err(|e| format!("{}", e))?;
+    }
+
     Ok(())
 }
 
