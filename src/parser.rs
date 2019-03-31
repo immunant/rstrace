@@ -1,18 +1,16 @@
 use nom::types::CompleteStr;
+use nom::Err;
+use crate::Exec;
 
+/// to combine nom parsing functions, they have to have
+/// compatible return types, so they all return `Expr`.
 #[derive(Debug,PartialEq)]
-pub struct Exec {
-    pub path: String,
-}
-
-#[derive(Debug,PartialEq)]
-pub enum Expr {
+enum Expr {
     UInt(u8),
     Str(String),
     ArrOfStr(Vec<String>)
 }
 
-const empty: CompleteStr = CompleteStr("");
 
 named!(string<CompleteStr, &str>,
     map!(
@@ -25,10 +23,13 @@ named!(string_expr<CompleteStr, Expr>,
 );
 
 #[test]
+const EMPTY: CompleteStr = CompleteStr("");
+
+#[test]
 fn test_string() {
     assert_eq!(
         string(CompleteStr("\"test\"")),
-        Ok((empty, "test"))
+        Ok((EMPTY, "test"))
     );
     assert_eq!(
         string(CompleteStr("\"te\"st\"")),
@@ -63,15 +64,15 @@ named!(arr_of_str_expr<CompleteStr, Expr>,
 fn test_arr_of_str() {
     assert_eq!(
         arr_of_str(CompleteStr("[]")),
-        Ok((empty, vec![]))
+        Ok((EMPTY, vec![]))
     );
     assert_eq!(
         arr_of_str(CompleteStr("[\"test\"]")),
-        Ok((empty, vec!["test"]))
+        Ok((EMPTY, vec!["test"]))
     );
     assert_eq!(
         arr_of_str(CompleteStr("[\"test\", \"best\"]")),
-        Ok((empty, vec!["test", "best"]))
+        Ok((EMPTY, vec!["test", "best"]))
     );
 }
 
@@ -90,7 +91,7 @@ named!(retcode<CompleteStr, Expr>,
 
 #[test]
 fn test_retcode() {
-    assert_eq!(retcode(CompleteStr("0")), Ok((empty, Expr::UInt(0u8))));
+    assert_eq!(retcode(CompleteStr("0")), Ok((EMPTY, Expr::UInt(0u8))));
 }
 
 
@@ -105,8 +106,9 @@ named!(execve<CompleteStr, Exec>,
                 tag_s!(") = ") >>
         retc:   retcode >>
         (
-            if let Expr::Str(path) = path {
-                Exec { path }
+            if let (Expr::Str(path), Expr::ArrOfStr(args), Expr::UInt(r)) =
+                (path, args, retc) {
+                Exec { path, args, retcode: r }
             } else { panic!() }
         )
     )
@@ -115,8 +117,10 @@ named!(execve<CompleteStr, Exec>,
 #[test]
 fn test_execve() {
     assert_eq!(
-        execve(CompleteStr("execve(\"/bin/ls\", [\"la\"], []) = 0")),
-        Ok((empty, Exec { path: "/bin/ls".to_string() }))
+        execve(CompleteStr("execve(\"/bin/ls\", [\"-la\"], []) = 0")),
+        Ok((EMPTY, Exec {
+            path: "/bin/ls".to_string(),
+            args: vec!["-la".to_string()] }))
     );
 }
 
@@ -135,12 +139,17 @@ named!(line<CompleteStr, Option<Exec>>,
     alt!(
         map!(footer, |_| None) |
         map!(execve, |e| Some(e))
-
     )
 );
 
-pub fn parseln(input: &str) {
-    println!("{:?}", input);
-    let res = line(CompleteStr(input));
-    println!("{:?}", res);
+pub fn parseln(input: &str) -> Result<Option<Exec>, String> {
+    let res = line(CompleteStr(input))
+        .map_err(|_| format!("failed to parse:\n {}", input))?;
+
+    if let Some(exec) = res.1 {
+//        println!("{:?}", exec);
+        return Ok(Some(exec));
+    }
+
+    Ok(None)
 }

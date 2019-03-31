@@ -15,6 +15,14 @@ use std::io::{BufReader, BufRead};
 
 mod parser;
 
+#[derive(Debug,PartialEq)]
+pub struct Exec {
+    pub path: String,
+    pub args: Vec<String>,
+//    pub env: Vec<String>,
+    pub retcode: u8
+}
+
 fn locate_strace() -> Result<String, &'static str> {
     // get path to strace
     let mut which_strace = Command::new("which");
@@ -42,14 +50,20 @@ fn locate_strace() -> Result<String, &'static str> {
     Ok(strace_path.to_string())
 }
 
+fn process_exec(e: Exec) {
+
+}
+
 fn process_output_file(file: PathBuf) -> Result<(), String> {
 
     let f = File::open(file).unwrap();
     let buf = BufReader::new(&f);
-    for line in buf.lines() {
-        let line = line.unwrap();
-        parser::parseln(&line);
-    }
+    let execs = buf.lines()
+        .filter_map(|l|
+            parser::parseln(&l.unwrap()).unwrap_or(None)
+        )
+        .collect::<Vec<_>>();
+
     Ok(())
 }
 
