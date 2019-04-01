@@ -1,4 +1,3 @@
-#![feature(custom_attribute)]
 
 use std::process::{exit, Command};
 use std::path::{Path, PathBuf};
@@ -71,6 +70,8 @@ fn process_output_file(file: PathBuf) -> Result<(), String> {
             parser::parseln(&l.unwrap()).unwrap_or(None)
         )
         .collect::<Vec<_>>();
+
+    println!("{:#?}", execs);
 
     Ok(())
 }

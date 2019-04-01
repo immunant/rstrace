@@ -95,8 +95,9 @@ fn test_retcode() {
 
 named!(env_var<CompleteStr,(&str,&str)>,
     do_parse!(
-        key:    take_until_and_consume!("=") >>
-        value:  take_while!(|c| true) >>
+                tag_s!("\"")                   >>
+        key:    take_until_and_consume!("=")  >>
+        value:  take_until_and_consume!("\"") >>
         ((&key, &value))
     )
 );
@@ -104,16 +105,16 @@ named!(env_var<CompleteStr,(&str,&str)>,
 #[test]
 fn test_env_var() {
     assert_eq!(
-        env_var(CompleteStr("key=value")),
+        env_var(CompleteStr("\"key=value\"")),
         Ok((EMPTY, ("key", "value")))
     );
     assert_eq!(
-        env_var(CompleteStr("key=value=value")),
+        env_var(CompleteStr("\"key=value=value\"")),
         Ok((EMPTY, ("key", "value=value")))
     );
 }
 
-named!(arr_of_env_var<CompleteStr, Vec<(String, String)>>,
+named!(arr_of_env_var<CompleteStr, Vec<(&str, &str)>>,
     delimited!(
         char!('['),
         separated_list!(
@@ -123,6 +124,19 @@ named!(arr_of_env_var<CompleteStr, Vec<(String, String)>>,
         char!(']')
     )
 );
+
+#[test]
+fn test_arr_of_env_var() {
+    assert_eq!(
+        arr_of_env_var(CompleteStr("[]")),
+        Ok((EMPTY, vec![]))
+    );
+    assert_eq!(
+        arr_of_env_var(CompleteStr("[\"key=value\"]")),
+        Ok((EMPTY, vec![("key", "value")]))
+    );
+}
+
 
 named!(arr_of_env_var_expr<CompleteStr, Expr>,
     map!(
@@ -146,7 +160,7 @@ named!(execve<CompleteStr, Exec>,
                 tag_s!(") = ") >>
         retc:   retcode >>
         (
-            if let (Expr::Str(path), Expr::ArrOfStr(args), Expr::ArrOfStr(env), Expr::UInt(r)) =
+            if let (Expr::Str(path), Expr::ArrOfStr(args), Expr::ArrOfKeyVal(env), Expr::UInt(r)) =
                 (path, args, env, retc) {
                 Exec { path, args, env, retcode: r }
             } else { panic!() }
@@ -159,8 +173,11 @@ fn test_execve() {
     assert_eq!(
         execve(CompleteStr("execve(\"/bin/ls\", [\"-la\"], []) = 0")),
         Ok((EMPTY, Exec {
-            path: "/bin/ls".to_string(),
-            args: vec!["-la".to_string()] }))
+            path:       "/bin/ls".to_string(),
+            args:       vec!["-la".to_string()],
+            env:        vec![],
+            retcode:    0
+        }))
     );
 }
 
