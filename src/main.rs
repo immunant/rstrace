@@ -1,3 +1,5 @@
+#![feature(custom_attribute)]
+
 use std::process::{exit, Command};
 use std::path::{Path, PathBuf};
 
@@ -12,14 +14,20 @@ use tempfile::tempdir;
 use std::fs::File;
 use std::io::{BufReader, BufRead};
 
+extern crate serde;
+#[macro_use]
+extern crate serde_derive;
+extern crate serde_json;
 
 mod parser;
+mod ccmds;
 
 #[derive(Debug,PartialEq)]
 pub struct Exec {
     pub path: String,
     pub args: Vec<String>,
-//    pub env: Vec<String>,
+    pub env: Vec<(String,String)>,
+//    pub pwd: PathBuf,
     pub retcode: u8
 }
 

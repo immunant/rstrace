@@ -1,5 +1,4 @@
 use nom::types::CompleteStr;
-use nom::Err;
 use crate::Exec;
 
 /// to combine nom parsing functions, they have to have
@@ -8,9 +7,9 @@ use crate::Exec;
 enum Expr {
     UInt(u8),
     Str(String),
-    ArrOfStr(Vec<String>)
+    ArrOfStr(Vec<String>),
+    ArrOfKeyVal(Vec<(String,String)>)
 }
-
 
 named!(string<CompleteStr, &str>,
     map!(
@@ -22,7 +21,7 @@ named!(string_expr<CompleteStr, Expr>,
     map!(string, |s| Expr::Str(s.to_string()))
 );
 
-#[test]
+#[cfg(test)]
 const EMPTY: CompleteStr = CompleteStr("");
 
 #[test]
@@ -94,6 +93,47 @@ fn test_retcode() {
     assert_eq!(retcode(CompleteStr("0")), Ok((EMPTY, Expr::UInt(0u8))));
 }
 
+named!(env_var<CompleteStr,(&str,&str)>,
+    do_parse!(
+        key:    take_until_and_consume!("=") >>
+        value:  take_while!(|c| true) >>
+        ((&key, &value))
+    )
+);
+
+#[test]
+fn test_env_var() {
+    assert_eq!(
+        env_var(CompleteStr("key=value")),
+        Ok((EMPTY, ("key", "value")))
+    );
+    assert_eq!(
+        env_var(CompleteStr("key=value=value")),
+        Ok((EMPTY, ("key", "value=value")))
+    );
+}
+
+named!(arr_of_env_var<CompleteStr, Vec<(String, String)>>,
+    delimited!(
+        char!('['),
+        separated_list!(
+            tag!(", "),
+            env_var
+        ),
+        char!(']')
+    )
+);
+
+named!(arr_of_env_var_expr<CompleteStr, Expr>,
+    map!(
+        arr_of_env_var,
+        |v| Expr::ArrOfKeyVal(v
+            .iter()
+            .map(|s| (String::from(s.0), String::from(s.1)))
+            .collect::<Vec<(String, String)>>()
+        )
+    )
+);
 
 named!(execve<CompleteStr, Exec>,
     do_parse!(
@@ -102,13 +142,13 @@ named!(execve<CompleteStr, Exec>,
                 tag_s!(", ") >>
         args:   arr_of_str_expr >>
                 tag_s!(", ") >>
-        env :   arr_of_str_expr >>
+        env :   arr_of_env_var_expr >>
                 tag_s!(") = ") >>
         retc:   retcode >>
         (
-            if let (Expr::Str(path), Expr::ArrOfStr(args), Expr::UInt(r)) =
-                (path, args, retc) {
-                Exec { path, args, retcode: r }
+            if let (Expr::Str(path), Expr::ArrOfStr(args), Expr::ArrOfStr(env), Expr::UInt(r)) =
+                (path, args, env, retc) {
+                Exec { path, args, env, retcode: r }
             } else { panic!() }
         )
     )
