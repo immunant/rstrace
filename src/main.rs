@@ -1,33 +1,32 @@
-
-use std::process::{exit, Command};
 use std::path::{Path, PathBuf};
+use std::process::{exit, Command};
 
 #[macro_use]
 extern crate nom;
 #[macro_use(crate_version, crate_authors)]
 extern crate clap;
-use clap::{App, Arg, AppSettings, ArgMatches};
+use clap::{App, AppSettings, Arg, ArgMatches};
 
 extern crate tempfile;
-use tempfile::tempdir;
 use std::fs::File;
-use std::io::{BufReader, BufRead};
+use std::io::{BufRead, BufReader};
+use tempfile::tempdir;
 
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
 extern crate serde_json;
 
-mod parser;
 mod ccmds;
+mod parser;
 
-#[derive(Debug,PartialEq)]
+#[derive(Debug, PartialEq)]
 pub struct Exec {
     pub path: String,
     pub args: Vec<String>,
-    pub env: Vec<(String,String)>,
-//    pub pwd: PathBuf,
-    pub retcode: u8
+    pub env: Vec<(String, String)>,
+    //    pub pwd: PathBuf,
+    pub retcode: u8,
 }
 
 fn locate_strace() -> Result<String, &'static str> {
@@ -49,26 +48,24 @@ fn locate_strace() -> Result<String, &'static str> {
         .output()
         .expect("could not get strace version");
     assert!(strace_ver_output.status.success());
-    let strace_ver = String::from_utf8_lossy(
-        &strace_ver_output.stdout[0..17]
-    );
+    let strace_ver = String::from_utf8_lossy(&strace_ver_output.stdout[0..17]);
     assert_eq!("strace -- version", strace_ver);
 
     Ok(strace_path.to_string())
 }
 
-fn process_exec(e : Exec) -> Option<Exec> {
+fn process_exec(e: Exec) -> Option<Exec> {
     None
 }
 
 fn process_output_file<O>(
     file: &PathBuf,
-    callback: fn(Exec) -> Option<O>
-    ) -> Result<Vec<O>, String> {
-
+    callback: fn(Exec) -> Option<O>,
+) -> Result<Vec<O>, String> {
     let f = File::open(file).unwrap();
     let buf = BufReader::new(&f);
-    let res = buf.lines()
+    let res = buf
+        .lines()
         .filter_map(|l| {
             parser::parseln(&l.unwrap())
                 .unwrap_or(None)
@@ -82,14 +79,17 @@ fn process_output_file<O>(
 fn run_strace<O>(
     args: ArgMatches,
     output_file: &str,
-    callback: fn(Exec) -> Option<O>
-    ) -> Result<Vec<O>, String> {
+    callback: fn(Exec) -> Option<O>,
+) -> Result<Vec<O>, String> {
     let strace_args = vec![
-        "-o", output_file,     // output to `$output_file.$pid`
-        "-ff",                 // follow forks
-        "-e", "trace=execve",  // only trace execve calls
-        "-s", "8192",          // set max string length
-        "-v"                   // request unabridged output
+        "-o",
+        output_file, // output to `$output_file.$pid`
+        "-ff",       // follow forks
+        "-e",
+        "trace=execve", // only trace execve calls
+        "-s",
+        "8192", // set max string length
+        "-v",   // request unabridged output
     ];
     // get the build command
     let cmd: Vec<&str> = args.values_of("cmd").unwrap().collect();
@@ -101,9 +101,7 @@ fn run_strace<O>(
         .spawn()
         .expect("failed to run strace");
 
-    let output = strace_child
-        .wait()
-        .expect("strace didn't exit cleanly");
+    let output = strace_child.wait().expect("strace didn't exit cleanly");
 
     let tmp_dir = Path::new(output_file).parent().unwrap();
     let tmp_files = tmp_dir
@@ -111,22 +109,18 @@ fn run_strace<O>(
         .unwrap()
         .map(|rde| {
             if let Ok(entry) = rde {
-                if let Ok(file_type) = entry.file_type()  {
+                if let Ok(file_type) = entry.file_type() {
                     assert!(file_type.is_file());
                     return entry.path();
                 }
             }
             // shouldn't happen since we strace to a pristine tempdir
-            panic!("unexpected non-file entry in {}",
-                   tmp_dir.to_str().unwrap());
+            panic!("unexpected non-file entry in {}", tmp_dir.to_str().unwrap());
         })
         .collect::<Vec<PathBuf>>();
     let res = tmp_files
         .iter()
-        .map(|file|
-            process_output_file(file, callback)
-            .unwrap()
-        )
+        .map(|file| process_output_file(file, callback).unwrap())
         .flatten()
         .collect::<Vec<O>>();
 
@@ -134,9 +128,8 @@ fn run_strace<O>(
 }
 
 fn run_app() -> Result<(), String> {
-
     if !cfg!(unix) {
-        return Err("cctrace only runs on Unix hosts".to_string())
+        return Err("cctrace only runs on Unix hosts".to_string());
     }
 
     let matches = App::new("cctrace")
@@ -150,21 +143,14 @@ fn run_app() -> Result<(), String> {
     {
         // Create a directory inside of `std::env::temp_dir()`
         let tmp_dir = tempdir().map_err(|e| format!("{}", e))?;
-        let strace_outfile = tmp_dir
-            .path()
-            .join("cctrace.out");
+        let strace_outfile = tmp_dir.path().join("cctrace.out");
         let strace_outfile = strace_outfile
             .to_str()
             .expect("failed to construct temporary output filename");
 
-        let execs = run_strace(
-            matches,
-            strace_outfile,
-            process_exec
-        )?;
+        let execs = run_strace(matches, strace_outfile, process_exec)?;
         println!("generated {} commands", execs.len());
         println!("{:?}", execs);
-
 
         // `tmp_dir` goes out of scope, the directory will be deleted here.
         tmp_dir.close().map_err(|e| format!("{}", e))?;
@@ -175,12 +161,10 @@ fn run_app() -> Result<(), String> {
 
 fn main() {
     exit(match run_app() {
-       Ok(_) => 0,
-       Err(err) => {
-           eprintln!("error: {:?}", err);
-           1
-       }
+        Ok(_) => 0,
+        Err(err) => {
+            eprintln!("error: {:?}", err);
+            1
+        }
     });
 }
-
-

@@ -1,5 +1,3 @@
-
-
 #[derive(Deserialize, Debug)]
 struct CompileCmd {
     /// The working directory of the compilation. All paths specified in the command

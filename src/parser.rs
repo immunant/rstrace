@@ -1,14 +1,14 @@
-use nom::types::CompleteStr;
 use crate::Exec;
+use nom::types::CompleteStr;
 
 /// to combine nom parsing functions, they have to have
 /// compatible return types, so they all return `Expr`.
-#[derive(Debug,PartialEq)]
+#[derive(Debug, PartialEq)]
 enum Expr {
     UInt(u8),
     Str(String),
     ArrOfStr(Vec<String>),
-    ArrOfKeyVal(Vec<(String,String)>)
+    ArrOfKeyVal(Vec<(String, String)>),
 }
 
 named!(string<CompleteStr, &str>,
@@ -26,10 +26,7 @@ const EMPTY: CompleteStr = CompleteStr("");
 
 #[test]
 fn test_string() {
-    assert_eq!(
-        string(CompleteStr("\"test\"")),
-        Ok((EMPTY, "test"))
-    );
+    assert_eq!(string(CompleteStr("\"test\"")), Ok((EMPTY, "test")));
     assert_eq!(
         string(CompleteStr("\"te\"st\"")),
         Ok((CompleteStr("st\""), "te"))
@@ -61,10 +58,7 @@ named!(arr_of_str_expr<CompleteStr, Expr>,
 
 #[test]
 fn test_arr_of_str() {
-    assert_eq!(
-        arr_of_str(CompleteStr("[]")),
-        Ok((EMPTY, vec![]))
-    );
+    assert_eq!(arr_of_str(CompleteStr("[]")), Ok((EMPTY, vec![])));
     assert_eq!(
         arr_of_str(CompleteStr("[\"test\"]")),
         Ok((EMPTY, vec!["test"]))
@@ -81,7 +75,7 @@ fn from_dec(input: CompleteStr) -> Result<Expr, std::num::ParseIntError> {
 }
 
 fn is_digit(c: char) -> bool {
-  c.is_digit(10)
+    c.is_digit(10)
 }
 
 named!(retcode<CompleteStr, Expr>,
@@ -127,16 +121,12 @@ named!(arr_of_env_var<CompleteStr, Vec<(&str, &str)>>,
 
 #[test]
 fn test_arr_of_env_var() {
-    assert_eq!(
-        arr_of_env_var(CompleteStr("[]")),
-        Ok((EMPTY, vec![]))
-    );
+    assert_eq!(arr_of_env_var(CompleteStr("[]")), Ok((EMPTY, vec![])));
     assert_eq!(
         arr_of_env_var(CompleteStr("[\"key=value\"]")),
         Ok((EMPTY, vec![("key", "value")]))
     );
 }
-
 
 named!(arr_of_env_var_expr<CompleteStr, Expr>,
     map!(
@@ -172,12 +162,15 @@ named!(execve<CompleteStr, Exec>,
 fn test_execve() {
     assert_eq!(
         execve(CompleteStr("execve(\"/bin/ls\", [\"-la\"], []) = 0")),
-        Ok((EMPTY, Exec {
-            path:       "/bin/ls".to_string(),
-            args:       vec!["-la".to_string()],
-            env:        vec![],
-            retcode:    0
-        }))
+        Ok((
+            EMPTY,
+            Exec {
+                path: "/bin/ls".to_string(),
+                args: vec!["-la".to_string()],
+                env: vec![],
+                retcode: 0
+            }
+        ))
     );
 }
 
@@ -200,11 +193,10 @@ named!(line<CompleteStr, Option<Exec>>,
 );
 
 pub fn parseln(input: &str) -> Result<Option<Exec>, String> {
-    let res = line(CompleteStr(input))
-        .map_err(|_| format!("failed to parse:\n {}", input))?;
+    let res = line(CompleteStr(input)).map_err(|_| format!("failed to parse:\n {}", input))?;
 
     if let Some(exec) = res.1 {
-//        println!("{:?}", exec);
+        //        println!("{:?}", exec);
         return Ok(Some(exec));
     }
 
