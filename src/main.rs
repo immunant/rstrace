@@ -57,26 +57,33 @@ fn locate_strace() -> Result<String, &'static str> {
     Ok(strace_path.to_string())
 }
 
-fn process_exec(e: Exec) {
-
+fn process_exec(e : Exec) -> Option<Exec> {
+    None
 }
 
-fn process_output_file(file: PathBuf) -> Result<(), String> {
+fn process_output_file<O>(
+    file: &PathBuf,
+    callback: fn(Exec) -> Option<O>
+    ) -> Result<Vec<O>, String> {
 
     let f = File::open(file).unwrap();
     let buf = BufReader::new(&f);
-    let execs = buf.lines()
-        .filter_map(|l|
-            parser::parseln(&l.unwrap()).unwrap_or(None)
-        )
-        .collect::<Vec<_>>();
+    let res = buf.lines()
+        .filter_map(|l| {
+            parser::parseln(&l.unwrap())
+                .unwrap_or(None)
+                .and_then(|f| callback(f))
+        })
+        .collect::<Vec<O>>();
 
-    println!("{:#?}", execs);
-
-    Ok(())
+    Ok(res)
 }
 
-fn run_strace(args: ArgMatches, output_file: &str) -> Result<(), String> {
+fn run_strace<O>(
+    args: ArgMatches,
+    output_file: &str,
+    callback: fn(Exec) -> Option<O>
+    ) -> Result<Vec<O>, String> {
     let strace_args = vec![
         "-o", output_file,     // output to `$output_file.$pid`
         "-ff",                 // follow forks
@@ -99,23 +106,31 @@ fn run_strace(args: ArgMatches, output_file: &str) -> Result<(), String> {
         .expect("strace didn't exit cleanly");
 
     let tmp_dir = Path::new(output_file).parent().unwrap();
-    let _res = tmp_dir
+    let tmp_files = tmp_dir
         .read_dir()
         .unwrap()
         .map(|rde| {
             if let Ok(entry) = rde {
                 if let Ok(file_type) = entry.file_type()  {
                     assert!(file_type.is_file());
-                    return process_output_file(entry.path())
+                    return entry.path();
                 }
             }
             // shouldn't happen since we strace to a pristine tempdir
             panic!("unexpected non-file entry in {}",
                    tmp_dir.to_str().unwrap());
-        }).collect::<Vec<_>>();
+        })
+        .collect::<Vec<PathBuf>>();
+    let res = tmp_files
+        .iter()
+        .map(|file|
+            process_output_file(file, callback)
+            .unwrap()
+        )
+        .flatten()
+        .collect::<Vec<O>>();
 
-
-    Ok(())
+    Ok(res)
 }
 
 fn run_app() -> Result<(), String> {
@@ -142,7 +157,14 @@ fn run_app() -> Result<(), String> {
             .to_str()
             .expect("failed to construct temporary output filename");
 
-        run_strace(matches, strace_outfile)?;
+        let execs = run_strace(
+            matches,
+            strace_outfile,
+            process_exec
+        )?;
+        println!("generated {} commands", execs.len());
+        println!("{:?}", execs);
+
 
         // `tmp_dir` goes out of scope, the directory will be deleted here.
         tmp_dir.close().map_err(|e| format!("{}", e))?;
