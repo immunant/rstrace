@@ -19,6 +19,8 @@ extern crate serde_json;
 
 mod ccmds;
 mod parser;
+mod tools;
+use tools::ToolKind;
 
 #[derive(Debug, PartialEq)]
 pub struct Exec {
@@ -55,7 +57,10 @@ fn locate_strace() -> Result<String, &'static str> {
 }
 
 fn process_exec(e: Exec) -> Option<Exec> {
-    None
+    match ToolKind::from(&e.path) {
+        ToolKind::Compiler => Some(e),
+        _ => None
+    }
 }
 
 fn process_output_file<O>(
