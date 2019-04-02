@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::process::{exit, Command};
 
@@ -22,6 +23,7 @@ extern crate serde_derive;
 extern crate serde_json;
 
 mod ccmds;
+use ccmds::write_compile_commands;
 mod parser;
 mod tools;
 use tools::ToolKind;
@@ -60,9 +62,28 @@ fn locate_strace() -> Result<String, &'static str> {
     Ok(strace_path.to_string())
 }
 
+lazy_static! {
+    static ref NOT_COMPILING: HashSet<&'static str> = {
+        let mut s = HashSet::new();
+        s.insert("-E");
+        s.insert("-cc1");
+        s.insert("-cc1as");
+        s.insert("-M");
+        s.insert("-MM");
+        s.insert("-###");
+        s
+    };
+}
+
 fn process_exec(e: Exec) -> Option<Exec> {
     match ToolKind::from(&e.path) {
-        ToolKind::Compiler => Some(e),
+        ToolKind::CCompiler | ToolKind::CXXCompiler => {
+            // detect when compilation pass is not involved
+            if e.args.iter().any(|a| NOT_COMPILING.contains(&a[..])) {
+                return None;
+            }
+            Some(e)
+        }
         _ => None,
     }
 }
@@ -161,8 +182,7 @@ fn run_app() -> Result<(), String> {
             .expect("failed to construct temporary output filename");
 
         let execs = run_strace(matches, strace_outfile, process_exec)?;
-        println!("generated {} commands", execs.len());
-        println!("{:?}", execs);
+        write_compile_commands(execs);
 
         // `tmp_dir` goes out of scope, the directory will be deleted here.
         tmp_dir.close().map_err(|e| format!("{}", e))?;

@@ -1,12 +1,13 @@
-use crate::tools::ToolKind::Compiler;
 use regex::Regex;
 use std::path::Path;
 
 #[derive(Debug, PartialEq)]
 pub enum ToolKind {
-    Compiler,
+    CCompiler,
+    CXXCompiler,
     CompilerWrapper,
-    CompilerAsLinker,
+    CCompilerAsLinker,
+    CXXCompilerAsLinker,
     Linker,
     Archiver,
     Unknown,
@@ -25,7 +26,7 @@ impl ToolKind {
         let file = path.file_name().unwrap().to_str().unwrap();
 
         if GCC.is_match(file) || CLANG.is_match(file) || ICC.is_match(file) || XLC.is_match(file) {
-            return ToolKind::Compiler;
+            return ToolKind::CCompiler;
         }
 
         ToolKind::Unknown
@@ -38,9 +39,9 @@ mod tests {
 
     #[test]
     fn test_toolkind_from() {
-        assert_eq!(ToolKind::from("/usr/bin/cc"), ToolKind::Compiler);
-        assert_eq!(ToolKind::from("/usr/bin/icc"), ToolKind::Compiler);
-        assert_eq!(ToolKind::from("/usr/bin/gcc"), ToolKind::Compiler);
-        assert_eq!(ToolKind::from("/usr/bin/clang"), ToolKind::Compiler);
+        assert_eq!(ToolKind::from("/usr/bin/cc"), ToolKind::CCompiler);
+        assert_eq!(ToolKind::from("/usr/bin/icc"), ToolKind::CCompiler);
+        assert_eq!(ToolKind::from("/usr/bin/gcc"), ToolKind::CCompiler);
+        assert_eq!(ToolKind::from("/usr/bin/clang"), ToolKind::CCompiler);
     }
 }
