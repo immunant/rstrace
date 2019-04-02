@@ -21,20 +21,6 @@ named!(string_expr<CompleteStr, Expr>,
     map!(string, |s| Expr::Str(s.to_string()))
 );
 
-#[cfg(test)]
-const EMPTY: CompleteStr = CompleteStr("");
-
-#[test]
-fn test_string() {
-    assert_eq!(string(CompleteStr("\"test\"")), Ok((EMPTY, "test")));
-    assert_eq!(
-        string(CompleteStr("\"te\"st\"")),
-        Ok((CompleteStr("st\""), "te"))
-    );
-    assert!(string(CompleteStr("\"\"")).is_err());
-    assert!(string(CompleteStr("\"")).is_err());
-}
-
 named!(arr_of_str<CompleteStr, Vec<&str>>,
     delimited!(
         char!('['),
@@ -45,6 +31,7 @@ named!(arr_of_str<CompleteStr, Vec<&str>>,
         char!(']')
     )
 );
+
 named!(arr_of_str_expr<CompleteStr, Expr>,
     map!(
         arr_of_str,
@@ -55,19 +42,6 @@ named!(arr_of_str_expr<CompleteStr, Expr>,
         )
     )
 );
-
-#[test]
-fn test_arr_of_str() {
-    assert_eq!(arr_of_str(CompleteStr("[]")), Ok((EMPTY, vec![])));
-    assert_eq!(
-        arr_of_str(CompleteStr("[\"test\"]")),
-        Ok((EMPTY, vec!["test"]))
-    );
-    assert_eq!(
-        arr_of_str(CompleteStr("[\"test\", \"best\"]")),
-        Ok((EMPTY, vec!["test", "best"]))
-    );
-}
 
 fn from_dec(input: CompleteStr) -> Result<Expr, std::num::ParseIntError> {
     let val = u8::from_str_radix(&input, 10)?;
@@ -82,11 +56,6 @@ named!(retcode<CompleteStr, Expr>,
   map_res!(dbg_dmp!(take_while!(is_digit)), from_dec)
 );
 
-#[test]
-fn test_retcode() {
-    assert_eq!(retcode(CompleteStr("0")), Ok((EMPTY, Expr::UInt(0u8))));
-}
-
 named!(env_var<CompleteStr,(&str,&str)>,
     do_parse!(
                 tag_s!("\"")                   >>
@@ -95,18 +64,6 @@ named!(env_var<CompleteStr,(&str,&str)>,
         ((&key, &value))
     )
 );
-
-#[test]
-fn test_env_var() {
-    assert_eq!(
-        env_var(CompleteStr("\"key=value\"")),
-        Ok((EMPTY, ("key", "value")))
-    );
-    assert_eq!(
-        env_var(CompleteStr("\"key=value=value\"")),
-        Ok((EMPTY, ("key", "value=value")))
-    );
-}
 
 named!(arr_of_env_var<CompleteStr, Vec<(&str, &str)>>,
     delimited!(
@@ -118,15 +75,6 @@ named!(arr_of_env_var<CompleteStr, Vec<(&str, &str)>>,
         char!(']')
     )
 );
-
-#[test]
-fn test_arr_of_env_var() {
-    assert_eq!(arr_of_env_var(CompleteStr("[]")), Ok((EMPTY, vec![])));
-    assert_eq!(
-        arr_of_env_var(CompleteStr("[\"key=value\"]")),
-        Ok((EMPTY, vec![("key", "value")]))
-    );
-}
 
 named!(arr_of_env_var_expr<CompleteStr, Expr>,
     map!(
@@ -158,32 +106,9 @@ named!(execve<CompleteStr, Exec>,
     )
 );
 
-#[test]
-fn test_execve() {
-    assert_eq!(
-        execve(CompleteStr("execve(\"/bin/ls\", [\"-la\"], []) = 0")),
-        Ok((
-            EMPTY,
-            Exec {
-                path: "/bin/ls".to_string(),
-                args: vec!["-la".to_string()],
-                env: vec![],
-                retcode: 0
-            }
-        ))
-    );
-}
-
 named!(footer<CompleteStr, Expr>,
     delimited!(tag_s!("+++ exited with "), retcode, tag_s!(" +++"))
 );
-
-#[test]
-fn test_footer() {
-    assert!(footer(CompleteStr("+++ exited with 0 +++")).is_ok());
-    assert!(footer(CompleteStr("+++ exited with 255 +++")).is_ok());
-    assert!(footer(CompleteStr("+++ exited with 1000 +++")).is_err());
-}
 
 named!(line<CompleteStr, Option<Exec>>,
     alt!(
@@ -196,9 +121,88 @@ pub fn parseln(input: &str) -> Result<Option<Exec>, String> {
     let res = line(CompleteStr(input)).map_err(|_| format!("failed to parse:\n {}", input))?;
 
     if let Some(exec) = res.1 {
-        //        println!("{:?}", exec);
         return Ok(Some(exec));
     }
 
     Ok(None)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const EMPTY: CompleteStr = CompleteStr("");
+
+    #[test]
+    fn test_string() {
+        assert_eq!(string(CompleteStr("\"test\"")), Ok((EMPTY, "test")));
+        assert_eq!(
+            string(CompleteStr("\"te\"st\"")),
+            Ok((CompleteStr("st\""), "te"))
+        );
+        assert!(string(CompleteStr("\"\"")).is_err());
+        assert!(string(CompleteStr("\"")).is_err());
+    }
+
+    #[test]
+    fn test_arr_of_str() {
+        assert_eq!(arr_of_str(CompleteStr("[]")), Ok((EMPTY, vec![])));
+        assert_eq!(
+            arr_of_str(CompleteStr("[\"test\"]")),
+            Ok((EMPTY, vec!["test"]))
+        );
+        assert_eq!(
+            arr_of_str(CompleteStr("[\"test\", \"best\"]")),
+            Ok((EMPTY, vec!["test", "best"]))
+        );
+    }
+
+    #[test]
+    fn test_retcode() {
+        assert_eq!(retcode(CompleteStr("0")), Ok((EMPTY, Expr::UInt(0u8))));
+    }
+
+    #[test]
+    fn test_env_var() {
+        assert_eq!(
+            env_var(CompleteStr("\"key=value\"")),
+            Ok((EMPTY, ("key", "value")))
+        );
+        assert_eq!(
+            env_var(CompleteStr("\"key=value=value\"")),
+            Ok((EMPTY, ("key", "value=value")))
+        );
+    }
+
+    #[test]
+    fn test_arr_of_env_var() {
+        assert_eq!(arr_of_env_var(CompleteStr("[]")), Ok((EMPTY, vec![])));
+        assert_eq!(
+            arr_of_env_var(CompleteStr("[\"key=value\"]")),
+            Ok((EMPTY, vec![("key", "value")]))
+        );
+    }
+
+    #[test]
+    fn test_execve() {
+        assert_eq!(
+            execve(CompleteStr("execve(\"/bin/ls\", [\"-la\"], []) = 0")),
+            Ok((
+                EMPTY,
+                Exec {
+                    path: "/bin/ls".to_string(),
+                    args: vec!["-la".to_string()],
+                    env: vec![],
+                    retcode: 0
+                }
+            ))
+        );
+    }
+
+    #[test]
+    fn test_footer() {
+        assert!(footer(CompleteStr("+++ exited with 0 +++")).is_ok());
+        assert!(footer(CompleteStr("+++ exited with 255 +++")).is_ok());
+        assert!(footer(CompleteStr("+++ exited with 1000 +++")).is_err());
+    }
 }

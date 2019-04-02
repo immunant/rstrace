@@ -7,6 +7,10 @@ extern crate nom;
 extern crate clap;
 use clap::{App, AppSettings, Arg, ArgMatches};
 
+#[macro_use]
+extern crate lazy_static;
+extern crate regex;
+
 extern crate tempfile;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
@@ -22,12 +26,12 @@ mod parser;
 mod tools;
 use tools::ToolKind;
 
+/// A single `execve` entry in an strace log
 #[derive(Debug, PartialEq)]
 pub struct Exec {
     pub path: String,
     pub args: Vec<String>,
     pub env: Vec<(String, String)>,
-    //    pub pwd: PathBuf,
     pub retcode: u8,
 }
 
@@ -59,7 +63,7 @@ fn locate_strace() -> Result<String, &'static str> {
 fn process_exec(e: Exec) -> Option<Exec> {
     match ToolKind::from(&e.path) {
         ToolKind::Compiler => Some(e),
-        _ => None
+        _ => None,
     }
 }
 
@@ -106,7 +110,10 @@ fn run_strace<O>(
         .spawn()
         .expect("failed to run strace");
 
-    let output = strace_child.wait().expect("strace didn't exit cleanly");
+    let output = strace_child
+        .wait()
+        .expect("couldn't get strace exit status");
+    assert!(output.success(), "strace didn't exit cleanly");
 
     let tmp_dir = Path::new(output_file).parent().unwrap();
     let tmp_files = tmp_dir
