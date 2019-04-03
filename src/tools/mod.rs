@@ -1,6 +1,8 @@
 use regex::Regex;
 use std::path::Path;
 
+pub mod cc;
+
 #[derive(Debug, PartialEq)]
 pub enum ToolKind {
     CCompiler,
