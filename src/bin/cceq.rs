@@ -2,6 +2,7 @@ use std::fs::{read_to_string, File};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::exit;
+use std::iter::FromIterator;
 
 #[macro_use]
 extern crate serde_derive;
@@ -13,6 +14,7 @@ extern crate clap;
 use clap::{App, AppSettings, Arg, ArgMatches};
 use std::error::Error;
 use std::fmt;
+use std::collections::HashSet;
 
 #[derive(Debug)]
 struct CompareError {
@@ -47,25 +49,51 @@ fn read_json(filename: &Path) -> Result<Vec<CompileCmd>> {
     serde_json::from_str(&contents)
 }
 
-//fn write_json(output_path: &Path, output: String) -> Option<PathBuf> {
-//    let mut file = match File::create(&output_path) {
-//        Ok(file) => file,
-//        Err(e) => panic!("Unable to open file for writing: {}", e),
-//    };
-//    match file.write_all(output.as_bytes()) {
-//        Ok(()) => (),
-//        Err(e) => panic!("Unable to write translation to file: {}", e),
-//    };
-//
-//    Some(PathBuf::from(output_path))
-//}
-
 fn compare_cmds(
-    mut ref_cmds: Vec<CompileCmd>,
-    mut tst_cmds: Vec<CompileCmd>
+    ref_cmds: Vec<CompileCmd>,
+    tst_cmds: Vec<CompileCmd>
 ) -> std::result::Result<(), CompareError> {
-    unimplemented!();
-//    Ok(())
+
+    let ref_set: HashSet<_> = HashSet::from_iter(ref_cmds.iter());
+    let tst_set: HashSet<_> = HashSet::from_iter(tst_cmds.iter());
+
+    if true {
+        // debug only
+        println!("reference commands {}", ref_cmds.len());
+        println!("test commands {}", tst_cmds.len());
+        let common = ref_set.intersection(&tst_set);
+        for cmd in common {
+            println!("common cmd {:?}", cmd);
+        }
+    }
+
+    // values that are in ref but not in test
+    let missing = ref_set.difference(&tst_set);
+
+    let count = missing.count();
+    if count > 0 {
+        let e = format!("{} commands from reference input are missing from test input",
+                  count);
+        return Err(CompareError::new(&e));
+    }
+
+    // values that are in test but not in ref
+    let extra = tst_set.difference(&ref_set);
+
+    let count = extra.count();
+    if count > 0 {
+        let e = format!("{} commands in test input are not in the reference input",
+                  count);
+        return Err(CompareError::new(&e));
+    }
+
+    if ref_cmds.len() != tst_cmds.len() {
+        return Err(CompareError::new(
+            "reference and test inputs differ in number of commands.",
+        ));
+    }
+
+    Ok(())
 }
 
 fn run_app() -> std::result::Result<(), CompareError> {
@@ -95,12 +123,6 @@ fn run_app() -> std::result::Result<(), CompareError> {
 
     let ref_cmds = read_json(&ref_json).map_err(|e| CompareError::new(e.description()))?;
     let tst_cmds = read_json(&tst_json).map_err(|e| CompareError::new(e.description()))?;
-
-    if ref_cmds.len() != tst_cmds.len() {
-        return Err(CompareError::new(
-            "reference and test inputs differ in number of commands.",
-        ));
-    }
 
     compare_cmds(ref_cmds, tst_cmds)?;
 

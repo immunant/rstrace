@@ -1,4 +1,6 @@
-#[derive(Deserialize, Serialize, Debug)]
+use std::hash::{Hash, Hasher};
+
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
 pub struct CompileCmd {
     /// The working directory of the compilation. All paths specified in the command
     /// or file fields must be either absolute or relative to this directory.
@@ -12,13 +14,25 @@ pub struct CompileCmd {
     /// to rerun the exact compilation step for the translation unit in the environment
     /// the build system uses. Parameters use shell quoting and shell escaping of quotes,
     /// with ‘"’ and ‘\’ being the only special characters. Shell expansion is not supported.
-    #[serde(skip_serializing)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     command: Option<String>,
     /// The compile command executed as list of strings. Either arguments or command is required.
     #[serde(default)]
     arguments: Vec<String>,
     /// The name of the output created by this compilation step. This field is optional. It can
     /// be used to distinguish different processing modes of the same input file.
-    #[serde(skip_serializing)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     output: Option<String>,
 }
+
+impl Hash for CompileCmd {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.directory.hash(state);
+        self.file.hash(state);
+        self.command.hash(state);
+        self.arguments.hash(state);
+        self.output.hash(state);
+    }
+}
+
+impl Eq for CompileCmd {}
