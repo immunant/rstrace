@@ -60,7 +60,7 @@ fn filter_args(args: Vec<String>) -> (Vec<String>, Option<String>) {
         let value = IGNORED_FLAGS.get::<str>(&arg.to_string());
         if let Some(&n) = value {
             (&mut args).skip(n as usize);
-        } else if arg == "-D" || arg == "-I" || arg == "-o" {
+        } else if arg == "-D" || arg == "-I" {
             (&mut args).skip(1);
         } else {
             filtered.push(arg.to_string());
