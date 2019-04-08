@@ -23,6 +23,8 @@ extern crate serde_json;
 
 mod tools;
 use tools::cc::{filter_execs, write_compile_commands};
+use crate::tools::ToolKind;
+
 mod parser;
 
 /// A single `execve` entry in an strace log
@@ -31,7 +33,7 @@ pub struct Exec {
     pub path: String,
     pub args: Vec<String>,
     pub env: Vec<(String, String)>,
-    pub retcode: u8,
+    pub retcode: u8
 }
 
 fn locate_strace() -> Result<String, &'static str> {

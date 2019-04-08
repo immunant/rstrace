@@ -1,8 +1,8 @@
 use std::fs::{read_to_string, File};
 use std::io::Write;
+use std::iter::FromIterator;
 use std::path::{Path, PathBuf};
 use std::process::exit;
-use std::iter::FromIterator;
 
 #[macro_use]
 extern crate serde_derive;
@@ -12,9 +12,9 @@ use serde_json::Result;
 #[macro_use(crate_version, crate_authors)]
 extern crate clap;
 use clap::{App, AppSettings, Arg, ArgMatches};
+use std::collections::HashSet;
 use std::error::Error;
 use std::fmt;
-use std::collections::HashSet;
 
 #[derive(Debug)]
 struct CompareError {
@@ -51,13 +51,12 @@ fn read_json(filename: &Path) -> Result<Vec<CompileCmd>> {
 
 fn compare_cmds(
     ref_cmds: Vec<CompileCmd>,
-    tst_cmds: Vec<CompileCmd>
+    tst_cmds: Vec<CompileCmd>,
 ) -> std::result::Result<(), CompareError> {
-
     let ref_set: HashSet<_> = HashSet::from_iter(ref_cmds.iter());
     let tst_set: HashSet<_> = HashSet::from_iter(tst_cmds.iter());
 
-    if true {
+    if false {
         // debug only
         println!("reference commands {}", ref_cmds.len());
         println!("test commands {}", tst_cmds.len());
@@ -68,22 +67,30 @@ fn compare_cmds(
     }
 
     // values that are in ref but not in test
-    let missing = ref_set.difference(&tst_set);
+    let missing = ref_set.difference(&tst_set).collect::<Vec<_>>();
 
-    let count = missing.count();
-    if count > 0 {
-        let e = format!("{} commands from reference input are missing from test input",
-                  count);
+    if missing.len() > 0 {
+        let e = format!(
+            "{} commands from reference input are missing from test input",
+            missing.len()
+        );
+        for cmd in missing {
+            eprintln!("missing cmd {:#?}", cmd);
+        }
         return Err(CompareError::new(&e));
     }
 
     // values that are in test but not in ref
-    let extra = tst_set.difference(&ref_set);
+    let extra = tst_set.difference(&ref_set).collect::<Vec<_>>();
 
-    let count = extra.count();
-    if count > 0 {
-        let e = format!("{} commands in test input are not in the reference input",
-                  count);
+    if extra.len() > 0 {
+        let e = format!(
+            "{} commands in test input are not in the reference input",
+            extra.len()
+        );
+        for cmd in extra {
+            eprintln!("extra cmd {:#?}", cmd);
+        }
         return Err(CompareError::new(&e));
     }
 

@@ -5,16 +5,21 @@ use std::io::Write;
 use regex::Regex;
 use serde_json::Result;
 
-use crate::tools::ToolKind;
+use crate::tools::{CompilerAction, ToolKind};
 use crate::Exec;
 
 include!("ccmd.rs");
 
 impl CompileCmd {
-    fn from(e: Exec) -> Self {
+    fn from(e: Exec, t: ToolKind) -> Self {
         let path = &e.env.iter().find(|(k, _v)| k == "PWD").unwrap().1;
         let (mut arguments, file) = filter_args(e.args);
-        arguments[0] = "cc".to_owned(); // TODO: is this correct for C++? I think not.
+        arguments[0] = match t {
+            ToolKind::CCompiler(_) => "cc".to_owned(),
+            ToolKind::CXXCompiler(_) => "c++".to_owned(),
+            _ => panic!(),
+        };
+        arguments.insert(1, "-c".to_owned());
 
         CompileCmd {
             directory: path.to_string(),
@@ -30,6 +35,9 @@ fn filter_args(args: Vec<String>) -> (Vec<String>, Option<String>) {
     lazy_static! {
         static ref IGNORED_FLAGS: HashMap<&'static str, u8> = {
             let mut s = HashMap::new();
+            // ignored because we will set it explicitly
+            // for compatibility with intercept build.
+            s.insert("-c", 0);
             // preprocessor macros
             s.insert("-MD", 0);
             s.insert("-MMD", 0);
@@ -72,7 +80,7 @@ fn filter_args(args: Vec<String>) -> (Vec<String>, Option<String>) {
     (filtered, file)
 }
 
-pub fn filter_execs(e: Exec) -> Option<Exec> {
+pub fn filter_execs(e: Exec) -> Option<(Exec, ToolKind)> {
     lazy_static! {
         static ref NOT_COMPILING: HashSet<&'static str> = {
             let mut s = HashSet::new();
@@ -86,21 +94,21 @@ pub fn filter_execs(e: Exec) -> Option<Exec> {
         };
     }
 
-    match ToolKind::from(&e.path) {
-        ToolKind::CCompiler | ToolKind::CXXCompiler => {
-            if e.args.iter().any(|a| NOT_COMPILING.contains(a.as_str())) {
-                return None;
-            }
-            Some(e)
+    let tk = ToolKind::from(&e);
+    match tk {
+        ToolKind::CCompiler(ref a) | ToolKind::CXXCompiler(ref a)
+            if a == &CompilerAction::Compile =>
+        {
+            Some((e, tk))
         }
         _ => None,
     }
 }
 
-pub fn write_compile_commands(v: Vec<Exec>) -> Result<()> {
+pub fn write_compile_commands(v: Vec<(Exec, ToolKind)>) -> Result<()> {
     let mut cmds = vec![];
-    for e in v {
-        cmds.push(CompileCmd::from(e));
+    for (e, t) in v {
+        cmds.push(CompileCmd::from(e, t));
     }
 
     // Serialize it to a JSON string.
