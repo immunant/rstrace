@@ -10,7 +10,7 @@ matrix:
 
 install:
   - pip --version
-  - pip install --upgrade pip scan-build
+  - pip install --upgrade pip
   - pip install scan-build
 
 script:
