@@ -19,4 +19,5 @@ install:
   - sudo -H pip install scan-build
 
 script:
+  - cargo build || travis_terminate 1
   - ./tests/all.sh
