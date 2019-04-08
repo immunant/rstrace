@@ -1,0 +1,17 @@
+language: rust
+rust:
+  - stable
+  - beta
+  - nightly
+matrix:
+  allow_failures:
+    - rust: nightly
+  fast_finish: true
+
+install:
+  - pip --version
+  - pip install --upgrade pip scan-build
+  - pip install scan-build
+
+script:
+  - ./tests/all.sh
