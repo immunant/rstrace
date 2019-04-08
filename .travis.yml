@@ -11,12 +11,12 @@ matrix:
 addons:
   apt:
     packages:
-      - python3-pip
+#      - python3-pip
       - libreadline-dev
 
 install:
-  - pip3 --version
-  - pip3 install scan-build
+  - pip --version
+  - sudo -H pip install scan-build
 
 script:
   - ./tests/all.sh
