@@ -20,4 +20,5 @@ install:
 
 script:
   - cargo build || travis_terminate 1
+  - cargo test || travis_terminate 1
   - ./tests/all.sh

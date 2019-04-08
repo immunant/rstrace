@@ -71,11 +71,48 @@ impl ToolKind {
 mod tests {
     use super::*;
 
+    impl Exec {
+        pub fn mock(
+                path: &str, 
+                args: &[&str]
+            ) -> Self {
+            let path = path.to_owned();
+            let env = vec![];
+            let mut args = args
+                .iter()
+                .map(|s| s.to_string())
+                .collect::<Vec<String>>();
+            let retcode = 0;
+            Exec { path, args, env, retcode }
+        }
+    }
+
     #[test]
     fn test_toolkind_from() {
-        assert_eq!(ToolKind::from("/usr/bin/cc"), ToolKind::CCompiler);
-        assert_eq!(ToolKind::from("/usr/bin/icc"), ToolKind::CCompiler);
-        assert_eq!(ToolKind::from("/usr/bin/gcc"), ToolKind::CCompiler);
-        assert_eq!(ToolKind::from("/usr/bin/clang"), ToolKind::CCompiler);
+        
+        let cc_paths = &[
+            "/usr/bin/cc",
+            "/usr/bin/icc",
+            "/usr/bin/gcc",
+            "/usr/bin/clang",
+        ];
+        for cc in cc_paths {
+            assert_eq!(
+                ToolKind::from(&Exec::mock(cc, &["-c"])), 
+                ToolKind::CCompiler(CompilerAction::Compile)
+            );
+        }
+
+        // let cxx_paths = &[
+        //     "/usr/bin/c++",
+        //     "/usr/bin/g++",
+        //     "/usr/bin/clang++",
+        // ];
+        // for cxx in cxx_paths {
+        //     assert_eq!(
+        //         ToolKind::from(&Exec::mock(cxx, &["-c"])), 
+        //         ToolKind::CXXCompiler(CompilerAction::Compile)
+        //     );
+        // }
     }
 }
