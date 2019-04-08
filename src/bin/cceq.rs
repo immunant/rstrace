@@ -1,7 +1,6 @@
-use std::fs::{read_to_string, File};
-use std::io::Write;
+use std::fs::read_to_string;
 use std::iter::FromIterator;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::exit;
 
 #[macro_use]
@@ -11,7 +10,7 @@ use serde_json::Result;
 
 #[macro_use(crate_version, crate_authors)]
 extern crate clap;
-use clap::{App, AppSettings, Arg, ArgMatches};
+use clap::{App, Arg};
 use std::collections::HashSet;
 use std::error::Error;
 use std::fmt;

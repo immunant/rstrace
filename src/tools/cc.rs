@@ -31,6 +31,7 @@ impl CompileCmd {
     }
 }
 
+#[allow(unused_must_use)]
 fn filter_args(args: Vec<String>) -> (Vec<String>, Option<String>) {
     lazy_static! {
         static ref IGNORED_FLAGS: HashMap<&'static str, u8> = {

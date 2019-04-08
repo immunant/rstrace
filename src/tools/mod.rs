@@ -45,10 +45,14 @@ pub enum ToolKind {
 impl ToolKind {
     pub fn from(e: &Exec) -> Self {
         lazy_static! {
+            // patterns lifted from bear
             static ref ICC: Regex = Regex::new(r"^i?cc$").unwrap();
             static ref GCC: Regex = Regex::new(r"^([^-]*-)*[mg]cc(-?\d+(\.\d+){0,2})?$").unwrap();
             static ref XLC: Regex = Regex::new(r"^g?xlc$").unwrap();
             static ref CLANG: Regex = Regex::new(r"^([^-]*-)*clang(-\d+(\.\d+){0,2})?$").unwrap();
+            static ref LD: Regex = Regex::new(r"^ld(\.(bfd|gold))?$").unwrap();
+            static ref CC_WRAPPER: Regex = Regex::new(r"^(distcc|ccache)$").unwrap();
+            static ref CC_MPI_WRAPPER: Regex = Regex::new(r"^mpi(cc|cxx|CC|c\+\+)$").unwrap();
         }
         let path = Path::new(&e.path);
         let file = path.file_name().unwrap().to_str().unwrap();
@@ -61,6 +65,12 @@ impl ToolKind {
             } else {
                 return ToolKind::CCompiler(action);
             }
+        } else if LD.is_match(file) {
+            return ToolKind::Linker;
+        } else if file == "ar" {
+            return ToolKind::Archiver;
+        } else if CC_WRAPPER.is_match(file) || CC_MPI_WRAPPER.is_match(file) {
+            return ToolKind::CompilerWrapper;
         }
 
         ToolKind::Unknown
@@ -72,24 +82,22 @@ mod tests {
     use super::*;
 
     impl Exec {
-        pub fn mock(
-                path: &str, 
-                args: &[&str]
-            ) -> Self {
+        pub fn mock(path: &str, args: &[&str]) -> Self {
             let path = path.to_owned();
             let env = vec![];
-            let mut args = args
-                .iter()
-                .map(|s| s.to_string())
-                .collect::<Vec<String>>();
+            let mut args = args.iter().map(|s| s.to_string()).collect::<Vec<String>>();
             let retcode = 0;
-            Exec { path, args, env, retcode }
+            Exec {
+                path,
+                args,
+                env,
+                retcode,
+            }
         }
     }
 
     #[test]
     fn test_toolkind_from() {
-        
         let cc_paths = &[
             "/usr/bin/cc",
             "/usr/bin/icc",
@@ -98,7 +106,7 @@ mod tests {
         ];
         for cc in cc_paths {
             assert_eq!(
-                ToolKind::from(&Exec::mock(cc, &["-c"])), 
+                ToolKind::from(&Exec::mock(cc, &["-c"])),
                 ToolKind::CCompiler(CompilerAction::Compile)
             );
         }
@@ -110,7 +118,7 @@ mod tests {
         // ];
         // for cxx in cxx_paths {
         //     assert_eq!(
-        //         ToolKind::from(&Exec::mock(cxx, &["-c"])), 
+        //         ToolKind::from(&Exec::mock(cxx, &["-c"])),
         //         ToolKind::CXXCompiler(CompilerAction::Compile)
         //     );
         // }

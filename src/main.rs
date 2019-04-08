@@ -23,7 +23,6 @@ extern crate serde_json;
 
 mod tools;
 use tools::cc::{filter_execs, write_compile_commands};
-use crate::tools::ToolKind;
 
 mod parser;
 
@@ -155,7 +154,7 @@ fn run_app() -> Result<(), String> {
             .expect("failed to construct temporary output filename");
 
         let execs = run_strace(matches, strace_outfile, filter_execs)?;
-        write_compile_commands(execs);
+        write_compile_commands(execs).expect("failed to write compile commands");
 
         // `tmp_dir` goes out of scope, the directory will be deleted here.
         tmp_dir.close().map_err(|e| format!("{}", e))?;
