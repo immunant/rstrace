@@ -8,9 +8,14 @@ matrix:
     - rust: nightly
   fast_finish: true
 
+addons:
+  apt:
+    packages:
+      - python3-pip
+      - libreadline-dev
+
 install:
   - pip3 --version
-  - pip3 install --upgrade pip
   - pip3 install scan-build
 
 script:
