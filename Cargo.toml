@@ -1,5 +1,5 @@
 [package]
-name = "cctrace"
+name = "rstrace"
 version = "0.1.0"
 authors = ["Per Larsen <perl@immunant.com>"]
 edition = "2018"

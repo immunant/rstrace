@@ -7,12 +7,16 @@ use serde_json::Result;
 
 use crate::tools::{CompilerAction, ToolKind};
 use crate::Exec;
+use std::path::Path;
 
 include!("ccmd.rs");
 
 impl CompileCmd {
     fn from(e: Exec, t: ToolKind) -> Self {
-        let path = &e.env.iter().find(|(k, _v)| k == "PWD").unwrap().1;
+        let path = &e.env
+            .iter()
+            .find(|(k, _v)| k == "PWD")
+            .unwrap().1;
         let (mut arguments, file) = filter_args(e.args);
         arguments[0] = match t {
             ToolKind::CCompiler(_) => "cc".to_owned(),
@@ -21,9 +25,20 @@ impl CompileCmd {
         };
         arguments.insert(1, "-c".to_owned());
 
+        // TODO: we need something like python's normpath which is not merged yet
+        // https://github.com/rust-lang/rust/issues/59117
+//        file_path = Path.new(file.unwrap());
+//        path_path = Path.new(path);
+//        // we need
+//        let file = if file_path.is_absolute() {
+//            file.unwrap();
+//        } else {
+//
+//        }
+
         CompileCmd {
             directory: path.to_string(),
-            file: file.unwrap(),
+            file: file,
             command: None,
             arguments,
             output: None, // TODO: should use this field

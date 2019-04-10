@@ -134,10 +134,10 @@ fn run_strace<O>(
 
 fn run_app() -> Result<(), String> {
     if !cfg!(unix) {
-        return Err("cctrace only runs on Unix hosts".to_string());
+        return Err("rstrace only runs on Unix hosts".to_string());
     }
 
-    let matches = App::new("cctrace")
+    let matches = App::new("rstrace")
         .version(crate_version!())
         .author(crate_authors!(", "))
         .about("traces C/C++ compiler and linker invocations")
@@ -148,7 +148,7 @@ fn run_app() -> Result<(), String> {
     {
         // Create a directory inside of `std::env::temp_dir()`
         let tmp_dir = tempdir().map_err(|e| format!("{}", e))?;
-        let strace_outfile = tmp_dir.path().join("cctrace.out");
+        let strace_outfile = tmp_dir.path().join("rstrace.out");
         let strace_outfile = strace_outfile
             .to_str()
             .expect("failed to construct temporary output filename");

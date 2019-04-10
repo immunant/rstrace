@@ -14,9 +14,9 @@ cd ${RUBY_HOME}
 intercept-build make ruby -j${NUM_PROCS}
 mv compile_commands.json compile_commands.intercept
 make clean
-${CCTRACE} make ruby -j${NUM_PROCS}
-mv compile_commands.json compile_commands.cctrace
+${RSTRACE} make ruby -j${NUM_PROCS}
+mv compile_commands.json compile_commands.rstrace
 cp compile_commands.* ${SCRIPT_DIR}
-${CCEQ} compile_commands.intercept compile_commands.cctrace
+${CCEQ} compile_commands.intercept compile_commands.rstrace
 
 echo -e "${GREEN}PASS${NC}"

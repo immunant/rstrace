@@ -12,6 +12,8 @@ cd ${LUA_HOME}
 intercept-build make linux -j${NUM_PROCS}
 mv compile_commands.json compile_commands.intercept
 make clean
-${CCTRACE} make linux -j${NUM_PROCS}
-mv compile_commands.json compile_commands.cctrace
-${CCEQ} compile_commands.intercept compile_commands.cctrace
+${RSTRACE} make linux -j${NUM_PROCS}
+mv compile_commands.json compile_commands.rstrace
+${CCEQ} compile_commands.intercept compile_commands.rstrace
+
+echo -e "${GREEN}PASS${NC}"
