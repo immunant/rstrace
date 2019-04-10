@@ -38,7 +38,7 @@ impl CompileCmd {
 
         CompileCmd {
             directory: path.to_string(),
-            file: file,
+            file: file.unwrap(),
             command: None,
             arguments,
             output: None, // TODO: should use this field
