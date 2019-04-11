@@ -2,7 +2,7 @@
 
 . "$(dirname "$0")/common.sh"
 
-echo "${GREEN}downloading and extracting ruby{NC}"
+echo -e "${GREEN}downloading and extracting ruby${NC}"
 curl -s https://cache.ruby-lang.org/pub/ruby/2.6/ruby-2.6.2.tar.gz | tar xz
 
 RUBY_HOME="$WORK_DIR/ruby-2.6.2"
@@ -12,10 +12,10 @@ RUBY_HOME="$WORK_DIR/ruby-2.6.2"
 cd ${RUBY_HOME}
 ./configure --quiet --disable-install-doc
 intercept-build make ruby -j${NUM_PROCS}
-#mv compile_commands.json compile_commands.intercept
+mv compile_commands.json compile_commands.intercept
 make clean
 ${RSTRACE} make ruby -j${NUM_PROCS}
-#mv compile_commands.json compile_commands.rstrace
+mv compile_commands.json compile_commands.rstrace
 #cp compile_commands.* ${SCRIPT_DIR}
 ${CCEQ} compile_commands.intercept compile_commands.rstrace
 
