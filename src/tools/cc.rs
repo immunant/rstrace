@@ -12,13 +12,17 @@ use crate::Exec;
 include!("ccmd.rs");
 
 impl CompileCmd {
-    fn from(e: Exec, t: ToolKind) -> Self {
+    fn try_from(e: Exec, t: ToolKind) -> Option<Self> {
         let path = &e.env
             .iter()
             .find(|(k, _v)| k == "PWD")
             .unwrap().1;
         let (mut arguments, file) =
             filter_args(e.args);
+        if file.is_none() {
+            return None;
+        }
+
         arguments[0] = match t {
             ToolKind::CCompiler(_) => "cc".to_owned(),
             ToolKind::CXXCompiler(_) => "c++".to_owned(),
@@ -26,13 +30,13 @@ impl CompileCmd {
         };
         arguments.insert(1, "-c".to_owned());
 
-        CompileCmd {
+        Some(CompileCmd {
             directory: path.to_string(),
             file: file.unwrap(),
             command: None,
             arguments,
             output: None, // TODO: should use this field
-        }
+        })
     }
 }
 
@@ -56,10 +60,11 @@ fn is_source(file: &str) -> bool {
             s.insert("C++");
             s.insert("t++");
             s.insert("txx");
-            s.insert("s");
-            s.insert("S");
-            s.insert("sx");
-            s.insert("asm");
+            // don't trace assembly to match intercept-build
+            // s.insert("s");
+            // s.insert("S");
+            // s.insert("sx");
+            // s.insert("asm");
             s
         };
     }
@@ -154,7 +159,10 @@ pub fn filter_execs(e: Exec) -> Option<(Exec, ToolKind)> {
 pub fn write_compile_commands(v: Vec<(Exec, ToolKind)>) -> Result<()> {
     let mut cmds = vec![];
     for (e, t) in v {
-        cmds.push(CompileCmd::from(e, t));
+        let cmd = CompileCmd::try_from(e, t);
+        if cmd.is_some() {
+            cmds.push(cmd.unwrap());
+        }
     }
 
     // Serialize it to a JSON string.

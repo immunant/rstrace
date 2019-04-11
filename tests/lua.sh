@@ -2,7 +2,7 @@
 
 . "$(dirname "$0")/common.sh"
 
-echo "downloading and extracting lua"
+echo "${GREEN}downloading and extracting lua{NC}"
 curl -s http://www.lua.org/ftp/lua-5.3.5.tar.gz | tar xz
 
 LUA_HOME="$WORK_DIR/lua-5.3.5"

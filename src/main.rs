@@ -106,7 +106,9 @@ fn run_strace<O>(
     let output = strace_child
         .wait()
         .expect("couldn't get strace exit status");
-    assert!(output.success(), "strace didn't exit cleanly");
+    if !output.success() {
+        exit(output.code().unwrap());
+    }
 
     let tmp_dir = Path::new(output_file).parent().unwrap();
     let tmp_files = tmp_dir
