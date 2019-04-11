@@ -1,13 +1,13 @@
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::Write;
+use std::path::{Path, PathBuf};
 
 use regex::Regex;
 use serde_json::Result;
 
 use crate::tools::{CompilerAction, ToolKind};
 use crate::Exec;
-use std::path::Path;
 
 include!("ccmd.rs");
 
@@ -17,24 +17,14 @@ impl CompileCmd {
             .iter()
             .find(|(k, _v)| k == "PWD")
             .unwrap().1;
-        let (mut arguments, file) = filter_args(e.args);
+        let (mut arguments, file) =
+            filter_args(e.args);
         arguments[0] = match t {
             ToolKind::CCompiler(_) => "cc".to_owned(),
             ToolKind::CXXCompiler(_) => "c++".to_owned(),
             _ => panic!(),
         };
         arguments.insert(1, "-c".to_owned());
-
-        // TODO: we need something like python's normpath which is not merged yet
-        // https://github.com/rust-lang/rust/issues/59117
-//        file_path = Path.new(file.unwrap());
-//        path_path = Path.new(path);
-//        // we need
-//        let file = if file_path.is_absolute() {
-//            file.unwrap();
-//        } else {
-//
-//        }
 
         CompileCmd {
             directory: path.to_string(),
@@ -43,6 +33,40 @@ impl CompileCmd {
             arguments,
             output: None, // TODO: should use this field
         }
+    }
+}
+
+fn is_source(file: &str) -> bool {
+    lazy_static! {
+        static ref SRC_EXT: HashSet<&'static str> = {
+            let mut s = HashSet::new();
+            s.insert("c");
+            s.insert("i");
+            s.insert("ii");
+            s.insert("m");
+            s.insert("mm");
+            s.insert("mii");
+            s.insert("C");
+            s.insert("cc");
+            s.insert("CC");
+            s.insert("cp");
+            s.insert("cpp");
+            s.insert("cxx");
+            s.insert("c++");
+            s.insert("C++");
+            s.insert("t++");
+            s.insert("txx");
+            s.insert("s");
+            s.insert("S");
+            s.insert("sx");
+            s.insert("asm");
+            s
+        };
+    }
+
+    match Path::new(file).extension() {
+        Some(ext) => SRC_EXT.get(ext.to_str().unwrap()).is_some(),
+        None => false
     }
 }
 
@@ -85,11 +109,17 @@ fn filter_args(args: Vec<String>) -> (Vec<String>, Option<String>) {
         if let Some(&n) = value {
             (&mut args).skip(n as usize);
         } else if arg == "-D" || arg == "-I" {
-            (&mut args).skip(1);
-        } else {
             filtered.push(arg.to_string());
-            if FILE.is_match(arg) {
-                file = Some(arg.to_string());
+            filtered.push(args.next().unwrap().to_string());
+        } else {
+            if FILE.is_match(arg) && is_source(arg) {
+                // chop off leading ./ to match output of intercept-build
+                let f = arg.to_string();
+                let f = if f.starts_with("./") { f[2..].to_owned() } else { f };
+                filtered.push(f.clone());
+                file = Some(f);
+            } else {
+                filtered.push(arg.to_string());
             }
         }
     }
