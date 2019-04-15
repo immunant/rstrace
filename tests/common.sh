@@ -7,6 +7,8 @@ NC='\033[0m' # No Color
 
 NUM_PROCS=`nproc --all`
 
+RUST_BACKTRACE=1
+
 SCRIPT_DIR="$(cd "$(dirname "$0" )" && pwd)"
 RSTRACE="$SCRIPT_DIR/../target/debug/rstrace"
 CCEQ="$SCRIPT_DIR/../target/debug/cceq"
