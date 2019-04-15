@@ -56,7 +56,7 @@ impl ToolKind {
             static ref GPP: Regex = Regex::new(r"^([^-]*-)*[mg]\+\+(-\d+(\.\d+){0,2})?$").unwrap();
             static ref CLANGPP: Regex = Regex::new(r"^([^-]*-)*clang\+\+(-\d+(\.\d+){0,2})?$").unwrap();
             static ref ICPC: Regex = Regex::new(r"^icpc$").unwrap();
-            static ref XLCPP: Regex = Regex::new(r"^(g|)xl(C|c\+\+)$").unwrap();
+            static ref XLCPP: Regex = Regex::new(r"^g?xl(C|c\+\+)$").unwrap();
 
             // Linker and wrapper patterns used in intercept-build
             static ref LD: Regex = Regex::new(r"^ld(\.(bfd|gold))?$").unwrap();
@@ -123,7 +123,12 @@ mod tests {
             );
         }
 
-        let cxx_paths = &["/usr/bin/c++", "/usr/bin/g++", "/usr/bin/clang++"];
+        let cxx_paths = &[
+            "/usr/bin/c++",
+            "/usr/bin/g++",
+            "/usr/bin/clang++",
+            "/usr/bin/xlc++",
+        ];
         for cxx in cxx_paths {
             assert_eq!(
                 ToolKind::from(&Exec::mock(cxx, &["-c"])),
