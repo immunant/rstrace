@@ -45,11 +45,20 @@ pub enum ToolKind {
 impl ToolKind {
     pub fn from(e: &Exec) -> Self {
         lazy_static! {
-            // patterns lifted from bear
+            // C compiler patterns used in intercept-build
             static ref ICC: Regex = Regex::new(r"^i?cc$").unwrap();
             static ref GCC: Regex = Regex::new(r"^([^-]*-)*[mg]cc(-?\d+(\.\d+){0,2})?$").unwrap();
             static ref XLC: Regex = Regex::new(r"^g?xlc$").unwrap();
             static ref CLANG: Regex = Regex::new(r"^([^-]*-)*clang(-\d+(\.\d+){0,2})?$").unwrap();
+
+            // C++ compiler patterns used in intercept-build
+            static ref CPP: Regex = Regex::new(r"^(c\+\+|cxx|CC)$").unwrap();
+            static ref GPP: Regex = Regex::new(r"^([^-]*-)*[mg]\+\+(-\d+(\.\d+){0,2})?$").unwrap();
+            static ref CLANGPP: Regex = Regex::new(r"^([^-]*-)*clang\+\+(-\d+(\.\d+){0,2})?$").unwrap();
+            static ref ICPC: Regex = Regex::new(r"^icpc$").unwrap();
+            static ref XLCPP: Regex = Regex::new(r"^(g|)xl(C|c\+\+)$").unwrap();
+
+            // Linker and wrapper patterns used in intercept-build
             static ref LD: Regex = Regex::new(r"^ld(\.(bfd|gold))?$").unwrap();
             static ref CC_WRAPPER: Regex = Regex::new(r"^(distcc|ccache)$").unwrap();
             static ref CC_MPI_WRAPPER: Regex = Regex::new(r"^mpi(cc|cxx|CC|c\+\+)$").unwrap();
@@ -59,12 +68,15 @@ impl ToolKind {
 
         if GCC.is_match(file) || CLANG.is_match(file) || ICC.is_match(file) || XLC.is_match(file) {
             let action = CompilerAction::from(&e.args);
-            let is_c_plus_plus = file.ends_with("++"); // TODO: likely too crude
-            if is_c_plus_plus {
-                return ToolKind::CXXCompiler(action);
-            } else {
-                return ToolKind::CCompiler(action);
-            }
+            return ToolKind::CCompiler(action);
+        } else if CPP.is_match(file)
+            || GPP.is_match(file)
+            || CLANGPP.is_match(file)
+            || ICPC.is_match(file)
+            || XLCPP.is_match(file)
+        {
+            let action = CompilerAction::from(&e.args);
+            return ToolKind::CXXCompiler(action);
         } else if LD.is_match(file) {
             return ToolKind::Linker;
         } else if file == "ar" {
@@ -85,7 +97,7 @@ mod tests {
         pub fn mock(path: &str, args: &[&str]) -> Self {
             let path = path.to_owned();
             let env = vec![];
-            let mut args = args.iter().map(|s| s.to_string()).collect::<Vec<String>>();
+            let args = args.iter().map(|s| s.to_string()).collect::<Vec<String>>();
             let retcode = 0;
             Exec {
                 path,
@@ -111,16 +123,12 @@ mod tests {
             );
         }
 
-        // let cxx_paths = &[
-        //     "/usr/bin/c++",
-        //     "/usr/bin/g++",
-        //     "/usr/bin/clang++",
-        // ];
-        // for cxx in cxx_paths {
-        //     assert_eq!(
-        //         ToolKind::from(&Exec::mock(cxx, &["-c"])),
-        //         ToolKind::CXXCompiler(CompilerAction::Compile)
-        //     );
-        // }
+        let cxx_paths = &["/usr/bin/c++", "/usr/bin/g++", "/usr/bin/clang++"];
+        for cxx in cxx_paths {
+            assert_eq!(
+                ToolKind::from(&Exec::mock(cxx, &["-c"])),
+                ToolKind::CXXCompiler(CompilerAction::Compile)
+            );
+        }
     }
 }

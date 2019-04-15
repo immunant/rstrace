@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::Write;
-use std::path::{Path};
+use std::path::Path;
 
 use regex::Regex;
 use serde_json::Result;
@@ -13,12 +13,8 @@ include!("ccmd.rs");
 
 impl CompileCmd {
     fn try_from(e: Exec, t: ToolKind) -> Option<Self> {
-        let path = &e.env
-            .iter()
-            .find(|(k, _v)| k == "PWD")
-            .unwrap().1;
-        let (mut arguments, file) =
-            filter_args(e.args);
+        let path = &e.env.iter().find(|(k, _v)| k == "PWD").unwrap().1;
+        let (mut arguments, file) = filter_args(e.args);
         if file.is_none() {
             return None;
         }
@@ -71,7 +67,7 @@ fn is_source(file: &str) -> bool {
 
     match Path::new(file).extension() {
         Some(ext) => SRC_EXT.get(ext.to_str().unwrap()).is_some(),
-        None => false
+        None => false,
     }
 }
 
@@ -120,7 +116,11 @@ fn filter_args(args: Vec<String>) -> (Vec<String>, Option<String>) {
             if FILE.is_match(arg) && is_source(arg) {
                 // chop off leading ./ to match output of intercept-build
                 let f = arg.to_string();
-                let f = if f.starts_with("./") { f[2..].to_owned() } else { f };
+                let f = if f.starts_with("./") {
+                    f[2..].to_owned()
+                } else {
+                    f
+                };
                 filtered.push(f.clone());
                 file = Some(f);
             } else {

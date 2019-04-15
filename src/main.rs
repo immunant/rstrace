@@ -32,7 +32,7 @@ pub struct Exec {
     pub path: String,
     pub args: Vec<String>,
     pub env: Vec<(String, String)>,
-    pub retcode: u8
+    pub retcode: u8,
 }
 
 fn locate_strace() -> Result<String, &'static str> {
