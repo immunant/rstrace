@@ -11,8 +11,8 @@ matrix:
 addons:
   apt:
     packages:
-#      - python3-pip
-      - libreadline-dev
+      - libreadline-dev # for lua
+      - bison # for ruby
 
 install:
   - pip --version
